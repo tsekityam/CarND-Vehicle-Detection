@@ -94,4 +94,4 @@ ENV/
 .ropeproject
 
 # Training data
-Classifier/**/*.png
+training_data/**/*.png
