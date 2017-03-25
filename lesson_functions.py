@@ -1,7 +1,10 @@
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
+from scipy.ndimage.measurements import label
 from skimage.feature import hog
+from model_parameters import *
+
 # Define a function to return an RGB image that has been converted to given color space
 def get_feature_image(image, color_space='RGB'):
     # apply color conversion if other than 'RGB'
@@ -287,3 +290,26 @@ def draw_labeled_bboxes(img, labels):
         cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
     # Return the image
     return img
+
+def get_image_with_car_highlighted(image, svc, X_scaler):
+    heat = np.zeros_like(image[:,:,0]).astype(np.float)
+
+    scales = np.linspace(1.0, 2.5, num=7)
+    bbox_list = find_cars(image, y_start_stop[0], y_start_stop[1], scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins,
+                          spatial_color_space=spatial_color_space, hist_color_space=hist_color_space, hog_color_space=hog_color_space, hog_channel=hog_channel,
+              spatial_feat=spatial_feat, hist_feat=hist_feat, hog_feat=hog_feat)
+
+    # Add heat to each box in box list
+    heat = add_heat(heat,bbox_list)
+
+    # Apply threshold to help remove false positives
+    heat = apply_threshold(heat,5)
+
+    # Visualize the heatmap when displaying
+    heatmap = np.clip(heat, 0, 255)
+
+    # Find final boxes from heatmap using label function
+    labels = label(heatmap)
+    draw_img = draw_labeled_bboxes(np.copy(image), labels)
+
+    return draw_img
