@@ -191,7 +191,7 @@ def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, c
         nblocks_per_window = (window // pix_per_cell)-1
         cells_per_step = 2  # Instead of overlap, define how many cells to step
         nxsteps = (nxblocks - nblocks_per_window) // cells_per_step
-        nysteps = (nyblocks - nblocks_per_window) // cells_per_step
+        nysteps = 1
 
         if hog_feat == True:
             # Compute individual channel HOG features for the entire image
