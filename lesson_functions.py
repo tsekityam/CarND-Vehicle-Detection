@@ -157,7 +157,8 @@ def draw_boxes(img, bboxes, color=(0, 0, 255), thick=6):
     return imcopy
 
 # Define a single function that can extract features using hog sub-sampling and make predictions
-def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins, color_space='RGB', hog_channel=0):
+def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins, color_space='RGB', hog_channel=0,
+              spatial_feat=True, hist_feat=True, hog_feat=True):
 
     bbox_list = []
     img = img.astype(np.float32)/255
@@ -185,51 +186,59 @@ def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, c
         nxsteps = (nxblocks - nblocks_per_window) // cells_per_step
         nysteps = (nyblocks - nblocks_per_window) // cells_per_step
 
-        # Compute individual channel HOG features for the entire image
-        if hog_channel == 'ALL':
-            hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
-            hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
-            hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
-        elif hog_channel == 0:
-            hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
-        elif hog_channel == 1:
-            hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
-        elif hog_channel == 2:
-            hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+        if hog_feat == True:
+            # Compute individual channel HOG features for the entire image
+            if hog_channel == 'ALL':
+                hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
+                hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
+                hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+            elif hog_channel == 0:
+                hog1 = get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
+            elif hog_channel == 1:
+                hog2 = get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
+            elif hog_channel == 2:
+                hog3 = get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
 
         for xb in range(nxsteps):
             for yb in range(nysteps):
+                file_features = []
+
                 ypos = yb*cells_per_step
                 xpos = xb*cells_per_step
-                # Extract HOG for this patch
-                if hog_channel == 'ALL':
-                    hog_feat1 = hog1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_feat2 = hog2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_feat3 = hog3[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_features = np.hstack((hog_feat1, hog_feat2, hog_feat3))
-                elif hog_channel == 0:
-                    hog_feat1 = hog1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_features = np.hstack((hog_feat1))
-                elif hog_channel == 1:
-                    hog_feat2 = hog2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_features = np.hstack((hog_feat2))
-                elif hog_channel == 2:
-                    hog_feat3 = hog3[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
-                    hog_features = np.hstack((hog_feat3))
-
+                
                 xleft = xpos*pix_per_cell
                 ytop = ypos*pix_per_cell
-
+                
                 # Extract the image patch
                 subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
 
                 # Get color features
-                spatial_features = bin_spatial(subimg, size=spatial_size)
-                hist_features = color_hist(subimg, nbins=hist_bins)
+                if spatial_feat == True:
+                    spatial_features = bin_spatial(subimg, size=spatial_size)
+                    file_features.append(spatial_features)
+                if hist_feat == True:
+                    hist_features = color_hist(subimg, nbins=hist_bins)
+                    file_features.append(hist_features)
+                if hog_feat == True:
+                    # Extract HOG for this patch
+                    if hog_channel == 'ALL':
+                        hog_feat1 = hog1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_feat2 = hog2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_feat3 = hog3[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_features = np.hstack((hog_feat1, hog_feat2, hog_feat3))
+                    elif hog_channel == 0:
+                        hog_feat1 = hog1[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_features = np.hstack((hog_feat1))
+                    elif hog_channel == 1:
+                        hog_feat2 = hog2[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_features = np.hstack((hog_feat2))
+                    elif hog_channel == 2:
+                        hog_feat3 = hog3[ypos:ypos+nblocks_per_window, xpos:xpos+nblocks_per_window].ravel()
+                        hog_features = np.hstack((hog_feat3))
+                    file_features.append(hog_features)
 
                 # Scale features and make a prediction
-                test_features = X_scaler.transform(np.hstack((spatial_features, hist_features, hog_features)).reshape(1, -1))
-                #test_features = X_scaler.transform(np.hstack((shape_feat, hist_feat)).reshape(1, -1))
+                test_features = X_scaler.transform(np.hstack(np.array(file_features)).reshape(1, -1))
                 test_prediction = svc.predict(test_features)
 
                 if test_prediction == 1:
