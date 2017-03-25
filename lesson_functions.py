@@ -61,8 +61,8 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
 
 # Define a function to extract features from a list of images
 # Have this function call bin_spatial() and color_hist()
-def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
-                        hist_bins=32, orient=9,
+def extract_features(imgs, spatial_color_space='RGB', hist_color_space='RGB', hog_color_space='RGB',
+                        spatial_size=(32, 32), hist_bins=32, orient=9,
                         pix_per_cell=8, cell_per_block=2, hog_channel=0,
                         spatial_feat=True, hist_feat=True, hog_feat=True):
     # Create a list to append feature vectors to
@@ -73,26 +73,28 @@ def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
         # Read in each one by one
         image = mpimg.imread(file)
         # apply color conversion
-        feature_image = get_feature_image(image, color_space)
 
         if spatial_feat == True:
-            spatial_features = bin_spatial(feature_image, size=spatial_size)
+            spatial_feature_image = get_feature_image(image, spatial_color_space)
+            spatial_features = bin_spatial(spatial_feature_image, size=spatial_size)
             file_features.append(spatial_features)
         if hist_feat == True:
             # Apply color_hist()
-            hist_features = color_hist(feature_image, nbins=hist_bins)
+            hist_feature_image = get_feature_image(image, hist_color_space)
+            hist_features = color_hist(hist_feature_image, nbins=hist_bins)
             file_features.append(hist_features)
         if hog_feat == True:
         # Call get_hog_features() with vis=False, feature_vec=True
+            hog_feature_image = get_feature_image(image, hog_color_space)
             if hog_channel == 'ALL':
                 hog_features = []
-                for channel in range(feature_image.shape[2]):
-                    hog_features.append(get_hog_features(feature_image[:,:,channel],
+                for channel in range(hog_feature_image.shape[2]):
+                    hog_features.append(get_hog_features(hog_feature_image[:,:,channel],
                                         orient, pix_per_cell, cell_per_block,
                                         vis=False, feature_vec=True))
                 hog_features = np.ravel(hog_features)
             else:
-                hog_features = get_hog_features(feature_image[:,:,hog_channel], orient,
+                hog_features = get_hog_features(hog_feature_image[:,:,hog_channel], orient,
                             pix_per_cell, cell_per_block, vis=False, feature_vec=True)
             # Append the new feature vector to the features list
             file_features.append(hog_features)
@@ -157,23 +159,28 @@ def draw_boxes(img, bboxes, color=(0, 0, 255), thick=6):
     return imcopy
 
 # Define a single function that can extract features using hog sub-sampling and make predictions
-def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins, color_space='RGB', hog_channel=0,
+def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins,
+              spatial_color_space='RGB', hist_color_space='RGB', hog_color_space='RGB', hog_channel=0,
               spatial_feat=True, hist_feat=True, hog_feat=True):
 
     bbox_list = []
     img = img.astype(np.float32)/255
 
     img_tosearch = img[ystart:ystop,:,:]
-    ctrans_tosearch = get_feature_image(img_tosearch, color_space=color_space)
+    spatial_ctrans_tosearch = get_feature_image(img_tosearch, color_space=spatial_color_space)
+    hist_ctrans_tosearch = get_feature_image(img_tosearch, color_space=hist_color_space)
+    hog_ctrans_tosearch = get_feature_image(img_tosearch, color_space=hog_color_space)
 
     for scale in scales:
         if scale != 1:
-            imshape = ctrans_tosearch.shape
-            ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
+            imshape = img_tosearch.shape
+            spatial_ctrans_tosearch = cv2.resize(spatial_ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
+            hist_ctrans_tosearch = cv2.resize(hist_ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
+            hog_ctrans_tosearch = cv2.resize(hog_ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
 
-        ch1 = ctrans_tosearch[:,:,0]
-        ch2 = ctrans_tosearch[:,:,1]
-        ch3 = ctrans_tosearch[:,:,2]
+        ch1 = hog_ctrans_tosearch[:,:,0]
+        ch2 = hog_ctrans_tosearch[:,:,1]
+        ch3 = hog_ctrans_tosearch[:,:,2]
 
         # Define blocks and steps as above
         nxblocks = (ch1.shape[1] // pix_per_cell)-1
@@ -205,19 +212,20 @@ def find_cars(img, ystart, ystop, scales, svc, X_scaler, orient, pix_per_cell, c
 
                 ypos = yb*cells_per_step
                 xpos = xb*cells_per_step
-                
+
                 xleft = xpos*pix_per_cell
                 ytop = ypos*pix_per_cell
-                
-                # Extract the image patch
-                subimg = cv2.resize(ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
 
                 # Get color features
                 if spatial_feat == True:
-                    spatial_features = bin_spatial(subimg, size=spatial_size)
+                    # Extract the image patch
+                    spatial_subimg = cv2.resize(spatial_ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
+                    spatial_features = bin_spatial(spatial_subimg, size=spatial_size)
                     file_features.append(spatial_features)
                 if hist_feat == True:
-                    hist_features = color_hist(subimg, nbins=hist_bins)
+                    # Extract the image patch
+                    hist_subimg = cv2.resize(hist_ctrans_tosearch[ytop:ytop+window, xleft:xleft+window], (64,64))
+                    hist_features = color_hist(hist_subimg, nbins=hist_bins)
                     file_features.append(hist_features)
                 if hog_feat == True:
                     # Extract HOG for this patch
