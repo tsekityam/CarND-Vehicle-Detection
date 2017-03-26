@@ -65,9 +65,9 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
 # Define a function to extract features from a list of images
 # Have this function call bin_spatial() and color_hist()
 def extract_features(imgs, spatial_color_space='RGB', hist_color_space='RGB', hog_color_space='RGB',
-                        spatial_size=(32, 32), hist_bins=32, orient=9,
-                        pix_per_cell=8, cell_per_block=2, hog_channel=0,
-                        spatial_feat=True, hist_feat=True, hog_feat=True):
+                     spatial_size=(32, 32), hist_bins=32, orient=9,
+                     pix_per_cell=8, cell_per_block=2, hog_channel=0,
+                     spatial_feat=True, hist_feat=True, hog_feat=True):
     # Create a list to append feature vectors to
     features = []
     # Iterate through the list of images
@@ -110,7 +110,7 @@ def extract_features(imgs, spatial_color_space='RGB', hist_color_space='RGB', ho
 # window size (x and y dimensions),
 # and overlap fraction (for both x and y)
 def slide_window(img, x_start_stop=[None, None], y_start_stop=[None, None],
-                    xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
+                 xy_window=(64, 64), xy_overlap=(0.5, 0.5)):
     # If x and/or y start/stop positions not defined, set to image size
     if x_start_stop[0] == None:
         x_start_stop[0] = 0
@@ -291,7 +291,9 @@ def draw_labeled_bboxes(img, labels):
     # Return the image
     return img
 
-def get_image_with_car_highlighted(image, svc, X_scaler):
+max_stack_size = 5
+def get_image_with_car_highlighted(image, svc, X_scaler, matched_windows_stack):
+
     heat = np.zeros_like(image[:,:,0]).astype(np.float)
 
     scales = np.linspace(1.0, 2.5, num=7)
@@ -299,11 +301,20 @@ def get_image_with_car_highlighted(image, svc, X_scaler):
                           spatial_color_space=spatial_color_space, hist_color_space=hist_color_space, hog_color_space=hog_color_space, hog_channel=hog_channel,
               spatial_feat=spatial_feat, hist_feat=hist_feat, hog_feat=hog_feat)
 
+    matched_windows_stack.append(bbox_list)
+    # ensure that the stack size is within the range of allowance
+    if len(matched_windows_stack) > max_stack_size:
+      matched_windows_stack = matched_windows_stack[-max_stack_size:]
+
+    combined_bbox_list = []
+    for matched_windows in matched_windows_stack:
+        combined_bbox_list = combined_bbox_list + matched_windows
+
     # Add heat to each box in box list
-    heat = add_heat(heat,bbox_list)
+    heat = add_heat(heat,combined_bbox_list)
 
     # Apply threshold to help remove false positives
-    heat = apply_threshold(heat,5)
+    heat = apply_threshold(heat,7*len(matched_windows_stack))
 
     # Visualize the heatmap when displaying
     heatmap = np.clip(heat, 0, 255)
@@ -311,5 +322,16 @@ def get_image_with_car_highlighted(image, svc, X_scaler):
     # Find final boxes from heatmap using label function
     labels = label(heatmap)
     draw_img = draw_labeled_bboxes(np.copy(image), labels)
+
+    return draw_img
+
+def get_image_with_matched_window_highlighted(image, svc, X_scaler):
+
+    scales = np.linspace(1.0, 2.5, num=7)
+    bbox_list = find_cars(image, y_start_stop[0], y_start_stop[1], scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins,
+                          spatial_color_space=spatial_color_space, hist_color_space=hist_color_space, hog_color_space=hog_color_space, hog_channel=hog_channel,
+                          spatial_feat=spatial_feat, hist_feat=hist_feat, hog_feat=hog_feat)
+
+    draw_img = draw_boxes(np.copy(image), bbox_list)
 
     return draw_img
