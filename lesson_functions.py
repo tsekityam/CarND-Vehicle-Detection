@@ -299,7 +299,7 @@ def get_image_with_car_highlighted(image, svc, X_scaler, matched_windows_stack):
     scales = np.linspace(1.0, 2.5, num=7)
     bbox_list = find_cars(image, y_start_stop[0], y_start_stop[1], scales, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins,
                           spatial_color_space=spatial_color_space, hist_color_space=hist_color_space, hog_color_space=hog_color_space, hog_channel=hog_channel,
-              spatial_feat=spatial_feat, hist_feat=hist_feat, hog_feat=hog_feat)
+                          spatial_feat=spatial_feat, hist_feat=hist_feat, hog_feat=hog_feat)
 
     matched_windows_stack.append(bbox_list)
     # ensure that the stack size is within the range of allowance
@@ -314,7 +314,7 @@ def get_image_with_car_highlighted(image, svc, X_scaler, matched_windows_stack):
     heat = add_heat(heat,combined_bbox_list)
 
     # Apply threshold to help remove false positives
-    heat = apply_threshold(heat,7*len(matched_windows_stack))
+    heat = apply_threshold(heat,5*len(matched_windows_stack))
 
     # Visualize the heatmap when displaying
     heatmap = np.clip(heat, 0, 255)

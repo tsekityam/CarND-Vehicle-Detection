@@ -1,4 +1,4 @@
-spatial_color_space = 'HSV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
+spatial_color_space = 'LUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 hist_color_space = 'LUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 hog_color_space = 'YCrCb' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 9  # HOG orientations
